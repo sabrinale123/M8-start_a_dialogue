@@ -52,7 +52,6 @@ var dialogue_items: Array[Dictionary] = [
 		"character": bodies["sophia"]
 	}
 ]
-var current_item_index := 0
 
 ## UI element that shows the texts
 @onready var rich_text_label: RichTextLabel = %RichTextLabel
@@ -66,12 +65,13 @@ var current_item_index := 0
 
 
 func _ready() -> void:
-	show_text()
+	show_text(0)
 
 
 
 ## Draws the current text to the rich text element
-func show_text() -> void:
+## [param current_item_index] Displays the currently selected index from the dialogue array
+func show_text(current_item_index: int) -> void:
 	# We retrieve the current item from the array
 	var current_item := dialogue_items[current_item_index]
 	# from the item, we extract the properties.
@@ -80,7 +80,6 @@ func show_text() -> void:
 	rich_text_label.text = current_item["text"]
 	expression.texture = current_item["expression"]
 	body.texture = current_item["character"]
-
 	# We set the initial visible ratio to the text to 0, so we can change it in the tween
 	rich_text_label.visible_ratio = 0.0
 	# We create a tween that will draw the text
@@ -101,22 +100,40 @@ func show_text() -> void:
 	audio_stream_player.play(sound_start_position)
 	# We make sure the sound stops when the text finishes displaying
 	tween.finished.connect(audio_stream_player.stop)
-
-	# We animate the character sliding in.
+	
+# We animate the character sliding in.
 	slide_in()
 
-
-## Progresses to the next slide.
-func advance() -> void:
-	# We increment the slide amount by 1
-	current_item_index += 1
-	if current_item_index == dialogue_items.size():
-		# if we reached the last slide, quit
-		get_tree().quit()
-	else:
-		# otherwise, show the text
-		show_text()
-
+# We disable the buttons, and re-enable them after the text is shown
+for button: Button in action_buttons_v_box_container.get_children():
+	button.disabsled = true
+tween.finished.connect(func() -> void:
+	for button: Button in action_buttons_v_box_container.get_children():
+		button.disabled = false
+	)
+	
+## Adds buttons to the buttons container
+## [param choices_data] A dictionary of [String] keys where each key represents
+##                      a sentence that the player can select, and each [int] value
+##                      represents a key for the next text item.
+func create_buttons(choices_data: Dictionary) -> void:
+	# We remove all previous buttons
+	for button in action_buttons_v_box_container.get_children():
+		button.queue_free()
+	# We loop over all the dictionary keys
+	for choice_text in choices_data:
+		var button := Button.new()
+		action_buttons_v_box_container.add_child(button)
+		button.text = choice_text
+		# We extract the target line index from the dictionary value
+		var target_line_idx: int = choices_data[choice_text]
+		if target_line_idx == - 1:
+			# If the target line index is -1, we want to quit
+			button.pressed.connect(get_tree().quit)
+		else:
+			# Otherwise we bind the target line index to the show_text function
+			# and use that in the pressed signal's connection
+			button.pressed.connect(show_text.bind(target_line_idx))
 
 ## Animates the character when they start talking
 func slide_in() -> void:
