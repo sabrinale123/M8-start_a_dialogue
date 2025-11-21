@@ -11,65 +11,63 @@ var bodies := {
 	"pink": preload ("res://assets/pink.png")
 }
 
-## An array of dictionaries. Each dictionary has three properties:
+## An array of dictionaries. Each dictionary has four properties:
 ## - expression: a [code]Texture[/code] containing an expression
 ## - text: a [code]String[/code] containing the text the character says
-## - character: a [code]Texture[/code] representing the character
+## - character: a [code]Texture[/code] representing the character, that we extract from the [code]bodies[/code] dictionary
+## - choices: a [code]dictionary[/code] with [code]String[/code] keys and [code]int[/code] values
 var dialogue_items: Array[Dictionary] = [
 	{
 		"expression": expressions["regular"],
-		"text": "I've been learning about [wave]Arrays and Dictionaries[/wave]",
-		"character": bodies["sophia"]
-	},
-	{
-		"expression": expressions["regular"],
-		"text": "How has it been going?",
-		"character": bodies["pink"]
-	},
-	{
-		"expression": expressions["sad"],
-		"text": "... Well... it is a little bit [shake]complicated[/shake]!",
-		"character": bodies["sophia"]
-	},
-	{
-		"expression": expressions["sad"],
-		"text": "Oh!",
-		"character": bodies["pink"]
-	},
-	{
-		"expression": expressions["regular"],
-		"text": "I believe in you!",
-		"character": bodies["pink"]
+		"text": "[wave]Hey, wake up![/wave]\nIt's time to make video games.",
+		"character": bodies["sophia"],
+		"choices": {
+			"Let me sleep a little longer": 2,
+			"Let's do it!": 1,
+		},
 	},
 	{
 		"expression": expressions["happy"],
-		"text": "If you stick to it, you'll eventually make it!",
-		"character": bodies["pink"]
+		"text": "Great! Your first task will be to write a [b]dialogue tree[/b].",
+		"character": bodies["sophia"],
+		"choices": {
+			"I will do my best": 3,
+			"No, let me go back to sleep": 2,
+		},
+	},
+	{
+		"expression": expressions["sad"],
+		"text": "Oh, come on! It'll be fun.",
+		"character": bodies["pink"],
+		"choices": {
+			"No, really, let me go back to sleep": 0,
+			"Alright, I'll try": 1,
+		},
 	},
 	{
 		"expression": expressions["happy"],
-		"text": "That's it! Let's [tornado freq=3.0][rainbow val=1.0]GOOOOOO!!![/rainbow][/tornado]",
-		"character": bodies["sophia"]
-	}
+		"text": "That's the spirit! [wave]You can do it![/wave]",
+		"character": bodies["pink"],
+		"choices": {"Okay! (Quit)": - 1},
+	},
 ]
 
 ## UI element that shows the texts
 @onready var rich_text_label: RichTextLabel = %RichTextLabel
-## UI element that progresses to the next text
 ## Audio player that plays voice sounds while text is being written
 @onready var audio_stream_player: AudioStreamPlayer = %AudioStreamPlayer
 ## The character
 @onready var body: TextureRect = %Body
 ## The Expression
 @onready var expression: TextureRect = %Expression
+## The container for buttons
+@onready var action_buttons_v_box_container: VBoxContainer = %ActionButtonsVBoxContainer
 
 
 func _ready() -> void:
 	show_text(0)
 
-
-
-## Draws the current text to the rich text element
+## Draws the selected text
 ## [param current_item_index] Displays the currently selected index from the dialogue array
 func show_text(current_item_index: int) -> void:
 	# We retrieve the current item from the array
@@ -80,6 +78,7 @@ func show_text(current_item_index: int) -> void:
 	rich_text_label.text = current_item["text"]
 	expression.texture = current_item["expression"]
 	body.texture = current_item["character"]
+	create_buttons(current_item["choices"])
 	# We set the initial visible ratio to the text to 0, so we can change it in the tween
 	rich_text_label.visible_ratio = 0.0
 	# We create a tween that will draw the text
@@ -100,18 +99,18 @@ func show_text(current_item_index: int) -> void:
 	audio_stream_player.play(sound_start_position)
 	# We make sure the sound stops when the text finishes displaying
 	tween.finished.connect(audio_stream_player.stop)
-	
-# We animate the character sliding in.
+
+	# We animate the character sliding in.
 	slide_in()
 
-# We disable the buttons, and re-enable them after the text is shown
-for button: Button in action_buttons_v_box_container.get_children():
-	button.disabsled = true
-tween.finished.connect(func() -> void:
+	# We disable the buttons, and re-enable them after the text is shown
 	for button: Button in action_buttons_v_box_container.get_children():
-		button.disabled = false
+		button.disabled = true
+	tween.finished.connect(func() -> void:
+		for button: Button in action_buttons_v_box_container.get_children():
+			button.disabled = false
 	)
-	
+
 ## Adds buttons to the buttons container
 ## [param choices_data] A dictionary of [String] keys where each key represents
 ##                      a sentence that the player can select, and each [int] value
